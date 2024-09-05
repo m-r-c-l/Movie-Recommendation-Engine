@@ -128,32 +128,58 @@ def train_model(
     return model, history
 
 
-
-
-
-
-
 def evaluate_model(
         model: MovieModel,
-        cached_test,
-    ) -> tuple[MovieModel, dict]:
+        cached_test: tf.data.Dataset,
+    ) -> dict:
     """
-    Evaluate trained model performance on the dataset
+    Evaluate trained model performance on the training dataset
     """
 
     #print(Fore.BLUE + f"\nEvaluating model on {len(X)} rows..." + Style.RESET_ALL)
 
     if model is None:
         print(f"\n❌ No model to evaluate")
-        return None
+        return None, None, None
+
+    metrics_dict = model.evaluate(cached_test, return_dict=True)
+
+    print(f"✅ Model evaluated")
+    print(f"\nRetrieval top-100 accuracy: {metrics_dict['factorized_top_k/top_100_categorical_accuracy']:.3f}")
+    print(f"Ranking RMSE: {metrics_dict['root_mean_squared_error']:.3f}")
+
+    return metrics_dict
 
 
-    metrics = model.evaluate(cached_test, return_dict=True)
+def predict_movie(
+    model,
+    user_id,
+    top_n=3,
+    movies = None
+    ):
 
-    factorized_top_100 = metrics['factorized_top_k/top_100_categorical_accuracy']
-    rmse = metrics['root_mean_squared_error']
+    assert movies is not None, "Movies dataset must be provided."
 
-    print(f"\nRetrieval top-100 accuracy: {factorized_top_100:.3f}")
-    print(f"Ranking RMSE: {rmse:.3f}")
+    # Create a model that takes in raw query features, and
+    index = tfrs.layers.factorized_top_k.BruteForce(model.user_model)
 
-    return metrics
+    # recommends movies out of the entire movies dataset.
+    index.index_from_dataset(
+      tf.data.Dataset.zip((movies.batch(100), movies.batch(100).map(model.movie_model)))
+    )
+
+    # Get recommendations.
+    _, titles = index(tf.constant([str(user_id)]))
+
+    recommendations = []
+    for i, title in enumerate(titles[0, :top_n].numpy()):
+        recommendations.append('{}. {}'.format(i+1, title.decode("utf-8")))
+
+    return recommendations
+
+#def predict_rating(user, movie):
+    #trained_movie_embeddings, trained_user_embeddings, predicted_rating = model({
+    #      "userId": np.array([str(user)]),
+    #      "original_title": np.array([movie])
+    #  })
+    #print("Predicted rating for {}: {}".format(movie, predicted_rating.numpy()[0][0]))
