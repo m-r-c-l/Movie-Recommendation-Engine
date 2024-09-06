@@ -35,3 +35,5 @@ Deleted app.py, dummy_main.py, dummy_model.py, requirements.txt that were in mov
 Created ./api/new_api.py for the actual model
 
 Changed makefile version of run_api to match new one
+
+Note in moviemain folder there are a few files from the old version of the dummy model that can be deleted (model, preprocessor etc)
