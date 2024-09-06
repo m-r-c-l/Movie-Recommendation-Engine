@@ -4,8 +4,8 @@ url = 'http://localhost:8000/predict'
 
 # these are turned into strings somehow maybe? should be fed to the model differently?
 params = {
-    'user_id': 1337,
-    'top_n': 10
+    'user_id': 25,
+    'top_n': 20
 }
 
 response = requests.get(url, params=params)
