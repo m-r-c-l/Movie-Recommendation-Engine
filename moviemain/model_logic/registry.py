@@ -57,6 +57,7 @@ def save_recommender(recommender = None) -> None:
     ❌ if MODEL_TARGET='mlflow', also persist it on MLflow instead of GCS
     """
 
+    # Save locally
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     recommender_path = os.path.join(LOCAL_REGISTRY_PATH, "recommender_models", f"{timestamp}")
 
@@ -64,13 +65,24 @@ def save_recommender(recommender = None) -> None:
 
     print("✅ Recommender saved locally")
 
-    if MODEL_TARGET == "gcs": ### needs testing
-
-        recommender_filename = recommender_path.split("/")[-1] # e.g. "20230208-161047.h5" for instance
+    # Upload to GCS if required
+    if MODEL_TARGET == "gcs":  ### needs testing
         client = storage.Client()
         bucket = client.bucket(BUCKET_NAME)
-        blob = bucket.blob(f"recommender_models/{recommender_filename}")
-        blob.upload_from_filename(recommender_path)
+
+        # Upload all files from the saved model directory to GCS
+        for root, dirs, files in os.walk(recommender_path):
+            for file in files:
+                local_file_path = os.path.join(root, file)
+
+                # Create relative path for GCS
+                relative_path = os.path.relpath(local_file_path, recommender_path)
+                blob_path = f"recommender_models/{timestamp}/{relative_path}"
+
+                # Upload each file to the appropriate GCS path
+                blob = bucket.blob(blob_path)
+                blob.upload_from_filename(local_file_path)
+                print(f"✅ Uploaded {local_file_path} to {blob_path} in GCS")
 
         print("✅ Recommender saved to GCS")
 
@@ -113,20 +125,35 @@ def load_recommender() -> None:
         print(Fore.BLUE + f"\nLoad latest model from GCS..." + Style.RESET_ALL)
 
         client = storage.Client()
-        blobs = list(client.get_bucket(BUCKET_NAME).list_blobs(prefix="recommender_model"))
+        bucket = client.bucket(BUCKET_NAME)
+
+        # List all blobs with the "recommender_model" prefix
+        blobs = list(bucket.list_blobs(prefix="recommender_models"))
 
         try:
-            latest_blob = max(blobs, key=lambda x: x.updated)
-            latest_recommender_model_path_to_save = os.path.join(LOCAL_REGISTRY_PATH, latest_blob.name)
-            latest_blob.download_to_filename(latest_recommender_model_path_to_save)
+            # Find the latest updated blob (this might be part of the model directory structure)
+            latest_blob_prefix = max(blobs, key=lambda x: x.updated).name.split("/")[1]
 
+            # Create a local path to save the model directory
+            latest_recommender_model_path_to_save = os.path.join(LOCAL_REGISTRY_PATH, "recommender_models", latest_blob_prefix)
+            os.makedirs(latest_recommender_model_path_to_save, exist_ok=True)
+
+            # Download all blobs (files) that belong to the latest model directory
+            for blob in blobs:
+                if blob.name.startswith(f"recommender_models/{latest_blob_prefix}"):
+                    local_file_path = os.path.join(LOCAL_REGISTRY_PATH, blob.name)
+                    os.makedirs(os.path.dirname(local_file_path), exist_ok=True)
+                    blob.download_to_filename(local_file_path)
+                    print(f"✅ Downloaded {blob.name} to {local_file_path}")
+
+            # Load the model from the downloaded directory
             latest_recommender = tf.saved_model.load(latest_recommender_model_path_to_save)
 
             print("✅ Latest model downloaded from cloud storage")
 
             return latest_recommender
-        except:
-            print(f"\n❌ No model found in GCS bucket {BUCKET_NAME}")
+        except Exception as e:
+            print(f"\n❌ No model found in GCS bucket {BUCKET_NAME} or an error occurred: {e}")
 
             return None
     else:
