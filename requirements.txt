@@ -2,6 +2,8 @@
 colorama
 protobuf==3.20.3
 
+python-dotenv
+
 # Trick to install the version of Tensorflow depending on your processor: darwin == Mac, ARM == M1
 tensorflow-macos==2.15.0; sys_platform == 'darwin' and 'ARM' in platform_version # Mac M-chips
 tensorflow==2.15.0; sys_platform == 'darwin' and 'ARM' not in platform_version # Mac Intel chips
@@ -21,3 +23,9 @@ orbax-checkpoint==0.4.4
 ## DELETE LATER (KEEPING IT FOR NOW JUST IN CASE)
 #tensorstore==0.1.64
 #keras==3.5.0
+
+
+### newly added by Marcel 05.09.2024
+google-cloud-storage==2.14.0
+google-api-core==2.8.2
+mlflow==2.1.1
