@@ -1,13 +1,21 @@
+from dotenv import load_dotenv
+import os
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import tensorflow_datasets as tfds
 
 from colorama import Fore, Style
+
+
 from moviemain.model_logic.basic_model import MovieModel, compile_model, train_model, evaluate_model, predict_movie
+from moviemain.model_logic.registry import load_model, save_model, save_results, load_recommender ## NEW
+from moviemain.model_logic.registry import mlflow_run, mlflow_transition_model ## NEW
+
+load_dotenv()
 
 
-def preprocess(dataset='100k') -> None:
+def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
     """
     - ✅ Load the data set (100k by default for development purposes)
         - Other arguments to pass:
@@ -29,8 +37,8 @@ def preprocess(dataset='100k') -> None:
     ratings = ratings.map(lambda x: {
     "movie_title": x["movie_title"],
     "user_id": x["user_id"],
-    "user_ratings": float(x["user_rating"])
-    })
+    "user_rating": float(x["user_rating"])
+
     movies = movies.map(lambda x: x["movie_title"])
 
 
@@ -41,6 +49,9 @@ def preprocess(dataset='100k') -> None:
     # tba
     #=> For now, we just return the data and don't store it.
     #=> The data is instead fetched via process() in train()
+    #=> However, it looks like the data is cached by default.
+    #=> So if process() is run twice, it doesn't download the data again
+    #=> Instead it loads it from cache (?)
 
     print("\n✅ Preprocess() completed sucessfully! \n")
 
@@ -119,15 +130,18 @@ def train(seed=42,
     ### Train model using 'model.py' ###
 
     ## Loading model from local registry path ##
-    # => This needs work to set up. See load_model() in registry.py
-    # => This needs even more work to set up when we want to load non-local models
-    #model = load_model()
 
-    #if model is None:
-    #    model = initialize_model(input_shape=X_train_processed.shape[1:])
-                    # Instead =>? compile_model(MovieModel, learning_rate=0.1, rating_weight=1.0, retrieval_weight=1.0)
+    #model = load_model() ## NEW
 
-    ## Compile model
+    #if model is None: ## NEW
+    #    model = compile_model(movies,
+    #                      unique_movie_titles,
+    #                      unique_user_ids,
+    #                      learning_rate=learning_rate,
+    #                      rating_weight=rating_weight,
+    #                      retrieval_weight=retrieval_weight
+    #                      )
+
     model = compile_model(movies,
                           unique_movie_titles,
                           unique_user_ids,
@@ -146,19 +160,43 @@ def train(seed=42,
         cached_train=cached_train,
         epochs=epochs)
 
+
+    params = dict(
+        context="train",
+        training_set_size=train_size, # not sure if needed, kept in for testing for now
+        row_count=train_size # not sure if needed, kept in for testing for now
+    )
+
+    training_metrics = {
+    'training_rmse': history.history['root_mean_squared_error'][-1],
+    'training_loss': history.history['loss'][-1],
+    'top_1_accuracy': history.history['factorized_top_k/top_1_categorical_accuracy'][-1],
+    'top_5_accuracy': history.history['factorized_top_k/top_5_categorical_accuracy'][-1],
+    'top_10_accuracy': history.history['factorized_top_k/top_10_categorical_accuracy'][-1],
+    'top_50_accuracy': history.history['factorized_top_k/top_50_categorical_accuracy'][-1],
+    'top_100_accuracy': history.history['factorized_top_k/top_100_categorical_accuracy'][-1],
+    }
+
+    # Save results on the hard drive using taxifare.ml_logic.registry
+    save_results(params=params, metrics=training_metrics)
+
+    # Save model weight on the hard drive (and optionally on GCS too!)
+    #save_model(model=model)
+
+    # The latest model should be moved to staging
+    if os.getenv('MODEL_TARGET') == 'mlflow':
+        mlflow_transition_model(current_stage="None", new_stage="Staging")
+
     print("✅ Train() completed successfully! \n")
     print(history.history)
 
-    return model, cached_test, history, movies
+    return model, cached_test, history, movies, train_size, test_size
 
 
-## Evaluate the model ##
-# Potential to-dos:
-    # 1) Fix setup to make it work ✅
-    # 2) Load and save model
 def evaluate(#model, #pass like this or call via train()?
             #cached_test,# pass like this or call via train()?
-            #stage: str = "Production"
+            stage: str = "Production" ## Why is this needed?
+
     ) -> tuple[dict, pd.DataFrame]:
     """
     Evaluate the performance of the (latest production) model on processed data
@@ -166,22 +204,22 @@ def evaluate(#model, #pass like this or call via train()?
     """
     print(Fore.MAGENTA + "\n⭐️ Use case: Evaluate" + Style.RESET_ALL)
 
-
-
-
+    ## Using load_model instead of calling train()
     #model = load_model(stage=stage)
     #assert model is not None
+    #
+    #=> get cached test????
+    #metrics_dict = evaluate_model(model=model, cached_test=cached_test)
 
 
-
-    ## To circumvent not having load_model yet
-    model, cached_test, history, movies = train()
+    ## To circumvent not having load_model yet ##
+    model, cached_test, history, movies, train_size, test_size = train()
 
     metrics_dict = evaluate_model(model=model, cached_test=cached_test)
 
-    #save_results(params=params, metrics=metrics_dict)
 
-    training_metrics = {
+    training_metrics = { ### this can be deleted later and we fetch training_metrics instead returned from train()
+
         'Training RMSE': history.history['root_mean_squared_error'][-1],
         'Training Loss': history.history['loss'][-1],
         'Top 1 Accuracy': history.history['factorized_top_k/top_1_categorical_accuracy'][-1],
@@ -201,6 +239,16 @@ def evaluate(#model, #pass like this or call via train()?
         'Top 100 Accuracy (Eval)': metrics_dict['factorized_top_k/top_100_categorical_accuracy'],
     }
 
+
+    params = dict(
+        context="evaluate", # Package behavior
+        training_set_size=test_size, # not sure if needed, kept in for testing for now
+        row_count=test_size  # not sure if needed, kept in for testing for now
+    )
+
+    save_results(params=params, metrics=metrics_dict)
+
+
     # Combine both sets of metrics into a DataFrame
     eval_vs_train_df = pd.DataFrame({
         'Metric': training_metrics.keys(),
@@ -211,8 +259,6 @@ def evaluate(#model, #pass like this or call via train()?
     print("\n✅ evaluate() done \n")
     print("📊🔍 Comparison of Training and Evaluation Results:")
     print(eval_vs_train_df.to_string(index=False))
-
-    ## How about returning a table that compares training vs. evaluating data? From history
 
     return metrics_dict
 
@@ -228,7 +274,8 @@ def predict(user_id=1337, top_n=10) -> np.ndarray:
     #assert model is not None
 
     ## To circumvent not having load_model yet
-    model, cached_test, history, movies = train()
+
+    model, cached_test, history, movies, train_size, test_size = train()
 
     ## Predict
     recommendations = predict_movie(model=model,
@@ -242,29 +289,26 @@ def predict(user_id=1337, top_n=10) -> np.ndarray:
 
     return recommendations
 
+def predict_from_storage(user_id=1337) -> pd.DataFrame:
+    recommender = load_recommender()
 
+    scores, titles = recommender([str(user_id)])
 
+    df_recommendations = pd.DataFrame({
+        'Title': titles.numpy().astype(str)[0],
+        'Score': scores.numpy()[0]
+    })
 
+    print(f"\n✅ Prediction from loaded recommender completed successfully!\n")
+    print(f"🎯 Top {len(df_recommendations)} recommendations for user {user_id}:\n")
+    for index, row in df_recommendations.iterrows():
+        print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    return df_recommendations
 
 if __name__ == '__main__':
-    #preprocess(min_date='2009-01-01', max_date='2015-01-01')
-    #train(min_date='2009-01-01', max_date='2015-01-01')
-    #evaluate(min_date='2009-01-01', max_date='2015-01-01')
-    #pred()
-    print("Test")
-    pass
+    #preprocess()
+    #train()
+    #evaluate()
+    predict() ## right now predict runs through all steps as save/load is not activated yet
+    predict_from_storage()
