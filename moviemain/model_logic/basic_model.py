@@ -1,11 +1,12 @@
 
 import tensorflow as tf
 import tensorflow_recommenders as tfrs
-from typing import Dict, Text
 
+from typing import Dict, Text
 from colorama import Fore, Style
 
 from api_third_try.model_logic.registry import save_recommender
+
 
 class MovieModel(tfrs.models.Model):
 
@@ -95,7 +96,9 @@ def compile_model(movies, unique_movie_titles, unique_user_ids, learning_rate=0.
     Compile the Neural Network
     """
     model = MovieModel(movies, unique_movie_titles, unique_user_ids, rating_weight, retrieval_weight)
+
     model.compile(optimizer=tf.keras.optimizers.Adagrad(learning_rate), run_eagerly=True)
+
 
     print("✅ Model compiled")
 
@@ -162,15 +165,19 @@ def predict_movie(
     assert movies is not None, "Movies dataset must be provided."
 
     # Create a model that takes in raw query features, and
+
     recommender = tfrs.layers.factorized_top_k.BruteForce(model.user_model)
 
     # recommends movies out of the entire movies dataset.
     recommender.index_from_dataset(
+
       tf.data.Dataset.zip((movies.batch(100), movies.batch(100).map(model.movie_model)))
     )
 
     # Get recommendations.
+
     _, titles = recommender(tf.constant([str(user_id)]))
+
 
     recommendations = []
     for i, title in enumerate(titles[0, :top_n].numpy()):
@@ -179,10 +186,6 @@ def predict_movie(
     save_recommender(recommender)
 
     return recommendations
-
-
-
-
 
 
 

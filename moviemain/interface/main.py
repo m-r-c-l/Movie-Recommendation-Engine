@@ -1,17 +1,19 @@
 from dotenv import load_dotenv
 import os
-
 import tensorflow as tf
 import pandas as pd
 import numpy as np
 import tensorflow_datasets as tfds
 
 from colorama import Fore, Style
-from api_third_try.model_logic.basic_model import MovieModel, compile_model, train_model, evaluate_model, predict_movie
-from api_third_try.model_logic.registry import load_model, save_model, save_results, load_recommender ## NEW
-from api_third_try.model_logic.registry import mlflow_run, mlflow_transition_model ## NEW
+
+
+from moviemain.model_logic.basic_model import MovieModel, compile_model, train_model, evaluate_model, predict_movie
+from moviemain.model_logic.registry import load_model, save_model, save_results, load_recommender ## NEW
+from moviemain.model_logic.registry import mlflow_run, mlflow_transition_model ## NEW
 
 load_dotenv()
+
 
 def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
     """
@@ -36,7 +38,7 @@ def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
     "movie_title": x["movie_title"],
     "user_id": x["user_id"],
     "user_rating": float(x["user_rating"])
-    })
+
     movies = movies.map(lambda x: x["movie_title"])
 
 
@@ -128,6 +130,7 @@ def train(seed=42,
     ### Train model using 'model.py' ###
 
     ## Loading model from local registry path ##
+
     #model = load_model() ## NEW
 
     #if model is None: ## NEW
@@ -138,7 +141,6 @@ def train(seed=42,
     #                      rating_weight=rating_weight,
     #                      retrieval_weight=retrieval_weight
     #                      )
-
 
     model = compile_model(movies,
                           unique_movie_titles,
@@ -194,6 +196,7 @@ def train(seed=42,
 def evaluate(#model, #pass like this or call via train()?
             #cached_test,# pass like this or call via train()?
             stage: str = "Production" ## Why is this needed?
+
     ) -> tuple[dict, pd.DataFrame]:
     """
     Evaluate the performance of the (latest production) model on processed data
@@ -216,6 +219,7 @@ def evaluate(#model, #pass like this or call via train()?
 
 
     training_metrics = { ### this can be deleted later and we fetch training_metrics instead returned from train()
+
         'Training RMSE': history.history['root_mean_squared_error'][-1],
         'Training Loss': history.history['loss'][-1],
         'Top 1 Accuracy': history.history['factorized_top_k/top_1_categorical_accuracy'][-1],
@@ -244,6 +248,7 @@ def evaluate(#model, #pass like this or call via train()?
 
     save_results(params=params, metrics=metrics_dict)
 
+
     # Combine both sets of metrics into a DataFrame
     eval_vs_train_df = pd.DataFrame({
         'Metric': training_metrics.keys(),
@@ -269,6 +274,7 @@ def predict(user_id=1337, top_n=10) -> np.ndarray:
     #assert model is not None
 
     ## To circumvent not having load_model yet
+
     model, cached_test, history, movies, train_size, test_size = train()
 
     ## Predict
@@ -306,4 +312,3 @@ if __name__ == '__main__':
     #evaluate()
     predict() ## right now predict runs through all steps as save/load is not activated yet
     predict_from_storage()
-    pass
