@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 ##################  VARIABLES  ##################
@@ -41,7 +44,8 @@ GAR_MEMORY = os.environ.get("GAR_MEMORY") # Stelios
 LOCAL_DATA_PATH = os.path.join(
     os.path.dirname(os.path.abspath('__file__')),
     "raw_data"
-)
+)  
+
 LOCAL_REGISTRY_PATH = os.path.join(
     os.path.dirname(os.path.abspath('__file__')),
     "training_outputs"
