@@ -7,6 +7,7 @@ FROM python:3.10.6-buster
 COPY requirements.txt /requirements.txt
 COPY api /api
 COPY moviemain /moviemain
+COPY training_outputs /training_outputs
 
 # RUN specifies commands that will be executed inside the image
 RUN pip install --upgrade pip

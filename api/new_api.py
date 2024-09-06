@@ -4,7 +4,7 @@ import tensorflow_recommenders as tfrs
 import numpy as np
 
 # importing model
-from moviemain.model_logic.registry import load_model
+from moviemain.model_logic.registry import load_model, load_recommender
 from moviemain.interface.main import *
 
 import sys
@@ -38,17 +38,21 @@ app = FastAPI()
 
 # placeholder for preloading the model
 # it is accessed faster from the second try and on
-model, movies = load_model(epochs=2)        # training can be adjusted here
+       # training can be adjusted here
+model = load_recommender()
+
+if model is None:
+    model = load_model()
 
 app.state.model = model
-app.state.movies = movies
+# app.state.movies = movies
 print("Model and movies cached successfully!")
 
 # greeting endpoint
 @app.get("/")
 def root():
     # returns dictionary so that it can be in JSON form
-    return dict(greeting = "Hello there general Kenobi")
+    return dict(greeting = "Hello there general Kenobi!")
 
 
 
@@ -59,13 +63,13 @@ def predict(user_id: int, top_n: int = 3):
     Take a user_id and number of recommendations as input and return movie recommendations.
     """
     model = app.state.model
-    movies = app.state.movies
+#    movies = app.state.movies
 
 
 
     assert model is not None, "Model is not loaded"
 
     # Call the prediction function
-    recommendations = predict_movie(model, user_id=user_id, top_n=top_n, movies=movies)
+    recommendations = predict_from_storage(user_id = 1337).to_dict()
 
     return {"recommendations": recommendations}
