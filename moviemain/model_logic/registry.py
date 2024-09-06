@@ -9,7 +9,7 @@ from tensorflow import keras
 import tensorflow as tf
 from google.cloud import storage
 
-from api_third_try.params import *
+from moviemain.params import *
 import mlflow
 from mlflow.tracking import MlflowClient
 

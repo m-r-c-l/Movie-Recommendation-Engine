@@ -37,7 +37,7 @@ def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
     ratings = ratings.map(lambda x: {
     "movie_title": x["movie_title"],
     "user_id": x["user_id"],
-    "user_rating": float(x["user_rating"])
+    "user_rating": float(x["user_rating"])})
 
     movies = movies.map(lambda x: x["movie_title"])
 
