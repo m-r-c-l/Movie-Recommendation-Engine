@@ -5,7 +5,7 @@ import tensorflow_recommenders as tfrs
 from typing import Dict, Text
 from colorama import Fore, Style
 
-from api_third_try.model_logic.registry import save_recommender
+from moviemain.model_logic.registry import save_recommender
 
 
 class MovieModel(tfrs.models.Model):
