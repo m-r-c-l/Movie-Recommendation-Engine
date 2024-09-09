@@ -8,10 +8,10 @@ load_dotenv()
 # Environment Parameters
 DATA_SIZE = os.environ.get("DATA_SIZE")
 MODEL_TARGET = os.environ.get("MODEL_TARGET")
-CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE")) ## Looks like it wasn't used in the taxi-fare at all as well (can delete?)
+CHUNK_SIZE = int(os.environ.get("CHUNK_SIZE")) ## This can be deleted. Not used anyhwere.
 
 # GCP Project
-GCP_PROJECT_WAGON = os.environ.get("GCP_PROJECT_WAGON")
+GCP_PROJECT_WAGON = os.environ.get("GCP_PROJECT_WAGON") ## This can be deleted I guess. Not used anywhere.
 
 # Your personal GCP project for this bootcamp
 GCP_PROJECT = os.environ.get("GCP_PROJECT")
@@ -43,8 +43,9 @@ GAR_MEMORY = os.environ.get("GAR_MEMORY") # Stelios
 ##################  CONSTANTS  #####################
 LOCAL_DATA_PATH = os.path.join(
     os.path.dirname(os.path.abspath('__file__')),
-    "training_outputs"
-)
+    "raw_data"
+)  
+
 LOCAL_REGISTRY_PATH = os.path.join(
     os.path.dirname(os.path.abspath('__file__')),
     "training_outputs"
