@@ -187,8 +187,6 @@ def predict_movie(
 
     return recommendations
 
-
-
 #def predict_rating(user, movie):
     #trained_movie_embeddings, trained_user_embeddings, predicted_rating = model({
     #      "userId": np.array([str(user)]),
