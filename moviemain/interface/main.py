@@ -307,25 +307,6 @@ def predict_from_storage(user_id=123) -> pd.DataFrame:
 
     return df_recommendations
 
-
-def predict_from_storage_and_get_user_history(user_id=123) -> pd.DataFrame:
-    recommender = load_recommender()
-
-    scores, titles = recommender([str(user_id)])
-
-    df_recommendations = pd.DataFrame({
-        'Title': titles.numpy().astype(str)[0],
-        'Score': scores.numpy()[0]
-    })
-
-    print(f"\n✅ Prediction from loaded recommender completed successfully!\n")
-    print(f"🎯 Top {len(df_recommendations)} recommendations for user {user_id}:\n")
-    for index, row in df_recommendations.iterrows():
-        print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
-
-    return df_recommendations
-
-
 def get_users_viewing_and_rating_history(user_id=123) -> pd.DataFrame:
 
     ## Get the movies the user watched and his ratings for the movies ##
