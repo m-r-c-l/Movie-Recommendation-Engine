@@ -14,24 +14,6 @@ sys.setrecursionlimit(1000)
 from fastapi import FastAPI
 
 
-
-# # function that predicts movies based on the model loaded below
-# def predict_movie(model, user_id: int, top_n: int, movies):
-#     # get predictions from the model (assuming it predicts top N movies for the user)
-#     predicted_scores =predict(user_id, top_n)
-
-
-#     top_movie_indices = np.argpartition(predicted_scores, -top_n)[-top_n:]
-
-# #    top_movie_indices = top_movie_indices[np.argsort(-predicted_scores[top_movie_indices])]
-
-#     # retrieve movie information from the preloaded movies dataset
-#     recommendations = [movies[i] for i in top_movie_indices]
-
-#     return recommendations
-
-
-
 # instantiating api
 app = FastAPI()
 
@@ -70,6 +52,9 @@ def predict(user_id: int, top_n: int = 3):
     assert model is not None, "Model is not loaded"
 
     # Call the prediction function
-    recommendations = predict_from_storage(user_id = 1337).to_dict()
+    recommendations = predict_from_storage(user_id).to_dict()
 
-    return {"recommendations": recommendations}
+    recom_dict = recommendations.get("Title")
+    title_list = [title for title in recom_dict.values()]
+
+    return title_list

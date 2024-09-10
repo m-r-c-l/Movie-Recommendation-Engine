@@ -13,9 +13,10 @@ COPY training_outputs /training_outputs
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
+
 # CMD is the last instruction and it specifies which command the container
 # runs once it has started
 # host 0.0.0.0 tells uvicorn to listen to all ports
 # uvicorn filename:variable is the syntax (the name of the file: the name of the variable containing the FastAPI)
 # the last part updates the port  for GCP because it needs a specific one
-CMD uvicorn api.api:app --host 0.0.0.0 --port $PORT
+CMD uvicorn api.new_api:app --host 0.0.0.0 --port ${PORT:-8000}
