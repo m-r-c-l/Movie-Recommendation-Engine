@@ -158,7 +158,7 @@ def evaluate_model(
 def predict_movie(
     model,
     user_id,
-    top_n=3,
+    top_n,
     movies = None
     ):
 
@@ -166,7 +166,7 @@ def predict_movie(
 
     # Create a model that takes in raw query features, and
 
-    recommender = tfrs.layers.factorized_top_k.BruteForce(model.user_model)
+    recommender = tfrs.layers.factorized_top_k.BruteForce(model.user_model, k=top_n)
 
     # recommends movies out of the entire movies dataset.
     recommender.index_from_dataset(

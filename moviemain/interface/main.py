@@ -58,10 +58,10 @@ def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
     return ratings, movies
 
 def train(seed=42,
-          split=0.2,
-          batch_size=1024,
-          epochs=1,
-          learning_rate = 0.1,
+          split=0,
+          batch_size=1_024,
+          epochs=3,
+          learning_rate = 0.05,
           rating_weight=1.0,
           retrieval_weight=1.0,
           reshuffle_each_iteration = False,
@@ -108,7 +108,8 @@ def train(seed=42,
 
     # Shuffle all observations based on shuffle_size and seed
     # => should prevent the model from learning the order of the data
-    shuffled = ratings.shuffle(shuffle_size, seed=seed, reshuffle_each_iteration=reshuffle_each_iteration)
+    #shuffled = ratings.shuffle(shuffle_size, seed=seed, reshuffle_each_iteration=reshuffle_each_iteration) # removed for now
+    shuffled = ratings
 
     # Split dataset in train and test
     train = shuffled.take(train_size)
@@ -150,8 +151,8 @@ def train(seed=42,
                           retrieval_weight=retrieval_weight
                           )
 
-    ## Cache shuffled train and test
-    cached_train = train.shuffle(train_size).batch(batch_size).cache()
+    ## Cache train and test
+    cached_train = train.batch(batch_size).cache()
     cached_test = test.batch(batch_size).cache()
 
     ## Train model
@@ -263,7 +264,7 @@ def evaluate(#model, #pass like this or call via train()?
     return metrics_dict
 
 
-def predict(user_id=1337, top_n=10) -> np.ndarray:
+def predict(user_id=123, top_n=50) -> np.ndarray:
     """
     Make a prediction using the (latest) trained model
     """
@@ -289,7 +290,7 @@ def predict(user_id=1337, top_n=10) -> np.ndarray:
 
     return recommendations
 
-def predict_from_storage(user_id=1337) -> pd.DataFrame:
+def predict_from_storage(user_id=123) -> pd.DataFrame:
     recommender = load_recommender()
 
     scores, titles = recommender([str(user_id)])
@@ -305,6 +306,75 @@ def predict_from_storage(user_id=1337) -> pd.DataFrame:
         print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
 
     return df_recommendations
+
+
+def predict_from_storage_and_get_user_history(user_id=123) -> pd.DataFrame:
+    recommender = load_recommender()
+
+    scores, titles = recommender([str(user_id)])
+
+    df_recommendations = pd.DataFrame({
+        'Title': titles.numpy().astype(str)[0],
+        'Score': scores.numpy()[0]
+    })
+
+    print(f"\n✅ Prediction from loaded recommender completed successfully!\n")
+    print(f"🎯 Top {len(df_recommendations)} recommendations for user {user_id}:\n")
+    for index, row in df_recommendations.iterrows():
+        print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
+
+    return df_recommendations
+
+
+def get_users_viewing_and_rating_history(user_id=123) -> pd.DataFrame:
+
+    ## Get the movies the user watched and his ratings for the movies ##
+    ratings, movies = preprocess()
+
+    user_viewing_history = ratings.filter(lambda x: x['user_id'] == tf.constant(str(user_id)))
+
+    # Initialize empty lists for movie titles and user ratings
+    movie_titles = []
+    user_ratings = []
+
+    # Iterate through the filtered dataset to access the records
+    for record in user_viewing_history:
+        movie_titles.append(record['movie_title'].numpy().decode('utf-8'))
+        user_ratings.append(record['user_rating'].numpy())
+
+    # Create the DataFrame for the user viewing history
+    df_user_viewing_history = pd.DataFrame({
+        'Title': movie_titles,
+        'User Rating': user_ratings
+    })
+
+    return df_user_viewing_history
+
+
+
+def get_recommendations_without_already_watched_and_user_history(user_id=123) -> pd.DataFrame:
+        # Load the recommender and get recommendations
+    recommender = load_recommender()
+    scores, titles = recommender([str(user_id)])
+
+    # Convert the recommendations into a DataFrame
+    df_recommendations = pd.DataFrame({
+        'Title': titles.numpy().astype(str)[0],
+        'Score': scores.numpy()[0]
+    })
+
+    # Get the user's viewing history
+    df_user_viewing_history = get_users_viewing_and_rating_history(user_id)
+
+    # Filter out movies that the user has already watched
+    df_filtered_recommendations = df_recommendations[~df_recommendations['Title'].isin(df_user_viewing_history['Title'])]
+
+    print(f"\n✅ Prediction from loaded recommender completed successfully!\n")
+    print(f"🎯 Top {len(df_filtered_recommendations)} filtered recommendations for user {user_id}:\n")
+    for index, row in df_filtered_recommendations.iterrows():
+        print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
+
+    return df_filtered_recommendations, df_user_viewing_history
 
 if __name__ == '__main__':
     #preprocess()
