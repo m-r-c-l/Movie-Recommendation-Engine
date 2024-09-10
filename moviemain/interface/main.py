@@ -7,15 +7,14 @@ import tensorflow_datasets as tfds
 
 from colorama import Fore, Style
 
-
+from moviemain.params import *
 from moviemain.model_logic.basic_model import MovieModel, compile_model, train_model, evaluate_model, predict_movie
 from moviemain.model_logic.registry import load_model, save_model, save_results, load_recommender ## NEW
 from moviemain.model_logic.registry import mlflow_run, mlflow_transition_model ## NEW
 
-load_dotenv()
 
 
-def preprocess(dataset=os.getenv('DATA_SIZE')) -> None:
+def preprocess(dataset=DATA_SIZE) -> None:
     """
     - ✅ Load the data set (100k by default for development purposes)
         - Other arguments to pass:
@@ -196,7 +195,7 @@ def train(seed=42,
 
 def evaluate(#model, #pass like this or call via train()?
             #cached_test,# pass like this or call via train()?
-            stage: str = "Production" ## Why is this needed?
+            #stage: str = "Production" ## Why is this needed?
 
     ) -> tuple[dict, pd.DataFrame]:
     """
@@ -264,7 +263,7 @@ def evaluate(#model, #pass like this or call via train()?
     return metrics_dict
 
 
-def predict(user_id=123, top_n=50) -> np.ndarray:
+def predict(user_id=366, top_n=50) -> np.ndarray:
     """
     Make a prediction using the (latest) trained model
     """
@@ -290,7 +289,8 @@ def predict(user_id=123, top_n=50) -> np.ndarray:
 
     return recommendations
 
-def predict_from_storage(user_id=123) -> pd.DataFrame:
+
+def predict_from_storage(user_id=366) -> pd.DataFrame:
     recommender = load_recommender()
 
     scores, titles = recommender([str(user_id)])
@@ -307,7 +307,8 @@ def predict_from_storage(user_id=123) -> pd.DataFrame:
 
     return df_recommendations
 
-def get_users_viewing_and_rating_history(user_id=123) -> pd.DataFrame:
+
+def get_users_viewing_and_rating_history(user_id=366) -> pd.DataFrame:
 
     ## Get the movies the user watched and his ratings for the movies ##
     ratings, movies = preprocess()
@@ -332,8 +333,7 @@ def get_users_viewing_and_rating_history(user_id=123) -> pd.DataFrame:
     return df_user_viewing_history
 
 
-
-def get_recommendations_without_already_watched_and_user_history(user_id=123) -> pd.DataFrame:
+def get_recommendations_without_already_watched_and_user_history(user_id=366) -> pd.DataFrame:
         # Load the recommender and get recommendations
     recommender = load_recommender()
     scores, titles = recommender([str(user_id)])
@@ -347,8 +347,35 @@ def get_recommendations_without_already_watched_and_user_history(user_id=123) ->
     # Get the user's viewing history
     df_user_viewing_history = get_users_viewing_and_rating_history(user_id)
 
+
+
+    # Import links to TMDB
+    links_path = os.path.join(LOCAL_DATA_PATH, 'ml-latest-small', 'links.csv')
+    movies_path = os.path.join(LOCAL_DATA_PATH, 'ml-latest-small', 'movies.csv')
+    links_df = pd.read_csv(links_path)
+    movies_df  = pd.read_csv(movies_path)
+
+    # Reduce dataframe to relevant columns only for performance
+    reduced_movies_df = movies_df[['movieId', 'title']]
+    reduced_links_df = links_df[['movieId', 'tmdbId']]
+    reduced_links_df['tmdbId'] = pd.to_numeric(reduced_links_df['tmdbId'], errors='coerce').astype('Int64')
+
+    # Merge titles and TMDB id into one dataframe
+    title_and_link = pd.merge(reduced_movies_df, reduced_links_df, on='movieId')
+
+
+
+    # Merge TMDB id to the user's viewing history df
+    df_user_viewing_history = pd.merge(df_user_viewing_history, title_and_link, left_on='Title', right_on='title', how='left')
+
+    # Merge recommendations with user's viewing history to add the TMDB id to each movie
+    df_recommendations_tmdb = pd.merge(df_recommendations, title_and_link, left_on='Title', right_on='title', how='left')
+
+
+
+
     # Filter out movies that the user has already watched
-    df_filtered_recommendations = df_recommendations[~df_recommendations['Title'].isin(df_user_viewing_history['Title'])]
+    df_filtered_recommendations = df_recommendations_tmdb[~df_recommendations_tmdb['Title'].isin(df_user_viewing_history['Title'])]
 
     print(f"\n✅ Prediction from loaded recommender completed successfully!\n")
     print(f"🎯 Top {len(df_filtered_recommendations)} filtered recommendations for user {user_id}:\n")
@@ -356,6 +383,7 @@ def get_recommendations_without_already_watched_and_user_history(user_id=123) ->
         print(f"🔹 {row['Title']} with a score of {row['Score']:.4f}")
 
     return df_filtered_recommendations, df_user_viewing_history
+
 
 if __name__ == '__main__':
     #preprocess()
