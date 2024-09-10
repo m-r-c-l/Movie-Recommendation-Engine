@@ -63,9 +63,18 @@ def predict(user_id: int, top_n: int = 3):
     # call the prediction function
     cleaned_recommendations, watched_recommendations = get_recommendations_without_already_watched_and_user_history(user_id)
 
+    # using this to counter error 500 i am getting for some reason
+    cleaned_recommendations = cleaned_recommendations.replace([np.inf, -np.inf], np.nan).dropna()
+
     recommendations = cleaned_recommendations.to_dict()
     recom_dict = recommendations.get("Title")
-    title_list = [title for title in recom_dict.values()]
-    list_to_disp = title_list[:top_n]
+    tmdb_movieid_dict = recommendations.get("tmdbId")
 
-    return list_to_disp
+    title_list = [title for title in recom_dict.values()]
+    tmdb_id_list = [id for id in tmdb_movieid_dict.values()]
+
+    list_to_disp = title_list[:top_n]
+    list_of_ids = tmdb_id_list[:top_n]
+
+
+    return list_to_disp, list_of_ids
