@@ -8,6 +8,7 @@ COPY requirements.txt /requirements.txt
 COPY api /api
 COPY moviemain /moviemain
 COPY training_outputs /training_outputs
+COPY raw_data/ml-latest-small /raw_data/ml-latest-small
 
 # RUN specifies commands that will be executed inside the image
 RUN pip install --upgrade pip
