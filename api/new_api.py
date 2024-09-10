@@ -34,7 +34,7 @@ print("Model and movies cached successfully!")
 @app.get("/")
 def root():
     # returns dictionary so that it can be in JSON form
-    return dict(greeting = "Hello there general Kenobi!")
+    return dict(greeting = "Hello there. This is the root page of MRE!")
 
 
 
@@ -51,10 +51,21 @@ def predict(user_id: int, top_n: int = 3):
 
     assert model is not None, "Model is not loaded"
 
-    # Call the prediction function
-    recommendations = predict_from_storage(user_id).to_dict()
+    # # OLD API THAT WORKED
+    # # call the prediction function
+    # recommendations = predict_from_storage(user_id).to_dict()
 
+    # recom_dict = recommendations.get("Title")
+    # title_list = [title for title in recom_dict.values()]
+
+    # return title_list
+
+    # call the prediction function
+    cleaned_recommendations, watched_recommendations = get_recommendations_without_already_watched_and_user_history(user_id)
+
+    recommendations = cleaned_recommendations.to_dict()
     recom_dict = recommendations.get("Title")
     title_list = [title for title in recom_dict.values()]
+    list_to_disp = title_list[:top_n]
 
-    return title_list
+    return list_to_disp
