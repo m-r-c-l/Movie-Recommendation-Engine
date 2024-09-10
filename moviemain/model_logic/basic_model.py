@@ -178,7 +178,6 @@ def predict_movie(
 
     _, titles = recommender(tf.constant([str(user_id)]))
 
-
     recommendations = []
     for i, title in enumerate(titles[0, :top_n].numpy()):
         recommendations.append('{}. {}'.format(i+1, title.decode("utf-8")))
